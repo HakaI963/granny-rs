@@ -123,10 +123,19 @@ fn android_main(app: AndroidApp) {
                 PollEvent::Main(MainEvent::TerminateWindow { .. }) => {
                     state = None;
                 }
-                PollEvent::Main(MainEvent::WindowResized { .. }) => {
-                    if let (Some(r), Some(w)) = (state.as_mut(), app.native_window()) {
-                        r.game.renderer.config.width = w.width().max(1) as u32;
-                        r.game.renderer.config.height = w.height().max(1) as u32;
+                PollEvent::Main(MainEvent::ConfigChanged { .. })
+                | PollEvent::Main(MainEvent::ContentRectChanged { .. })
+                | PollEvent::Main(MainEvent::WindowResized { .. }) => {
+                    if let Some(r) = state.as_mut() {
+                        // The window includes system insets; the content rect is
+                        // what is actually visible and what we must render into.
+                        let rect = app.content_rect();
+                        let (w, h) = (
+                            ((rect.right - rect.left) as u32).max(1),
+                            ((rect.bottom - rect.top) as u32).max(1),
+                        );
+                        r.game.renderer.config.width = w;
+                        r.game.renderer.config.height = h;
                         r.surface
                             .configure(&r.game.renderer.device, &r.game.renderer.config);
                         r.game.renderer.resize(r.game.renderer.config.clone());
