@@ -1,0 +1,7 @@
+/target
+/frame*.png
+/game*.png
+/cam*.png
+/dbg*.png
+/final*.png
+*.log

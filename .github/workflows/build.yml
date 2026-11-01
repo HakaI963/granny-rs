@@ -1,0 +1,80 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: fmt + clippy + test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: fmt
+        run: cargo fmt --all -- --check
+      - name: clippy
+        run: cargo clippy --all-targets -- -D warnings
+      - name: test
+        run: cargo test --all
+
+  linux:
+    name: build linux-x86_64
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwayland-dev libxkbcommon-dev libvulkan-dev \
+            libx11-dev libxcursor-dev libxi-dev libxrandr-dev
+      - name: build
+        run: cargo build --release --locked
+      - uses: actions/upload-artifact@v4
+        with:
+          name: granny-rs-linux-x86_64
+          path: target/release/granny-rs
+          if-no-files-found: error
+
+  android:
+    name: build android apk
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: android sdk + ndk
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null || true
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+            "ndk;27.0.12077973" "platforms;android-34" "build-tools;34.0.0" > /dev/null
+          echo "NDK_HOME=$ANDROID_HOME/ndk/27.0.12077973" >> $GITHUB_ENV
+      - name: cargo-ndk
+        run: cargo install cargo-ndk --locked
+      - name: build .so
+        run: cargo ndk -t arm64-v8a -o android/app/src/main/jniLibs build --release --locked
+      - name: package apk
+        run: |
+          chmod +x android/gradlew
+          cd android && ./gradlew --no-daemon assembleRelease
+      - uses: actions/upload-artifact@v4
+        with:
+          name: granny-rs-android
+          path: android/app/build/outputs/apk/**/*.apk
+          if-no-files-found: error
