@@ -67,3 +67,12 @@ assets/atlas.png  extracted texture atlas
 Granny and its assets are © DVloper. This repository contains an independent
 Rust implementation plus assets extracted from a copy of the game for
 interoperability research. Do not redistribute the assets.
+
+## Status
+
+- `fmt` / `clippy -D warnings` / 11 behavioural tests: green
+- Linux x86_64 release build: green
+- Android arm64 APK: built in CI via `cargo ndk` + Gradle
+
+See `docs/SPEC.md` for the method→Rust mapping and `docs/VERIFICATION.md` for
+the evidence trail (metadata counts, RVAs, Unity asset rules).
