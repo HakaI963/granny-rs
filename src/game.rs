@@ -67,6 +67,10 @@ pub struct AiBusy {
     pub hit_by_pepper: bool,
     pub frozen: bool,
     pub dropping_trap: bool,
+    /// `EnemyAIGranny` +0x214 / +0x215: a second pair of suppression flags read
+    /// by `followPlayer` after the six `GrannyDecisions` flags.
+    pub suppress_a: bool,
+    pub suppress_b: bool,
 }
 
 impl AiBusy {
@@ -77,6 +81,11 @@ impl AiBusy {
             || self.hit_by_pepper
             || self.frozen
             || self.dropping_trap
+    }
+
+    /// `followPlayer` additionally bails on +0x214/+0x215.
+    pub fn blocks_follow(&self) -> bool {
+        self.any() || self.suppress_a || self.suppress_b
     }
 }
 
@@ -437,6 +446,11 @@ impl World {
     }
 
     fn step_granny(&mut self, dt: f32) {
+        // `EnemyAIGranny.followPlayer` returns before moving when either the six
+        // decision flags or the two follow-specific flags are set.
+        if self.granny.busy.blocks_follow() {
+            return;
+        }
         let speed = match self.granny.state {
             AiState::Follow => GRANNY_FOLLOW.min(self.granny.speed + 0.8),
             AiState::Attack => 0.0,

@@ -176,3 +176,27 @@ fn day_timer_rolls_over() {
     w.tick(0.02, glam::Vec2::ZERO, false);
     assert_eq!(w.day, 2);
 }
+
+/// `EnemyAIGranny.followPlayer` (0x145bb60) checks the six `GrannyDecisions`
+/// flags plus two more at +0x214/+0x215 before moving.
+#[test]
+fn follow_player_respects_extra_suppression_flags() {
+    let mut w = world();
+    w.granny.state = AiState::Follow;
+    w.granny.pos = Vec3::ZERO;
+    w.player.pos = Vec3::new(5.0, 0.0, 0.0);
+
+    w.granny.busy.suppress_a = true;
+    let before = w.granny.pos;
+    w.tick(0.1, glam::Vec2::ZERO, false);
+    assert_eq!(w.granny.pos, before, "suppress_a must freeze pursuit");
+
+    w.granny.busy.suppress_a = false;
+    w.granny.busy.suppress_b = true;
+    w.tick(0.1, glam::Vec2::ZERO, false);
+    assert_eq!(w.granny.pos, before, "suppress_b must freeze pursuit");
+
+    w.granny.busy.suppress_b = false;
+    w.tick(0.1, glam::Vec2::ZERO, false);
+    assert_ne!(w.granny.pos, before, "unblocked pursuit must move");
+}
