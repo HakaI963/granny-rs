@@ -1,8 +1,8 @@
 //! Android entry point: `NativeActivity` + wgpu surface.
 //!
-//! wgpu needs a `HasWindowHandle`/`HasDisplayHandle` pair. `AndroidApp` exposes
-//! a raw `ANativeWindow`, so this module wraps it in a tiny handle type instead
-//! of relying on an integration crate that may not match our wgpu version.
+//! `android_main` runs before a window exists. `MainEvent::InitWindow` is the
+//! first moment `native_window()` is valid, so the wgpu surface and the game are
+//! created there and torn down on `TerminateWindow`.
 
 #![cfg(target_os = "android")]
 
@@ -40,35 +40,32 @@ impl HasDisplayHandle for AndroidWindow {
     }
 }
 
-#[no_mangle]
-fn android_main(app: AndroidApp) {
-    android_logger::init_once(
-        android_logger::Config::default().with_max_level(log::LevelFilter::Info),
-    );
-    log_panics::init();
+struct Renderer {
+    surface: wgpu::Surface<'static>,
+    game: App,
+}
 
-    let mgr = app.asset_manager();
-    crate::assets::set_android_assets(mgr);
-
-    let raw = app
+/// Build the surface and the game once a window exists.
+fn init_renderer(app: &AndroidApp) -> anyhow::Result<Renderer> {
+    let native = app
         .native_window()
-        .expect("native window")
-        .ptr()
-        .as_ptr()
-        .cast::<ndk_sys::ANativeWindow>();
-    let target = AndroidWindow { window: raw };
+        .ok_or_else(|| anyhow::anyhow!("no native window"))?;
+    let (width, height) = (native.width().max(1) as u32, native.height().max(1) as u32);
+    let raw = native.ptr().as_ptr().cast::<ndk_sys::ANativeWindow>();
+    // The surface borrows the window for the process lifetime; leak the handle
+    // so the surface can be 'static, which wgpu requires.
+    let target: &'static AndroidWindow = Box::leak(Box::new(AndroidWindow { window: raw }));
 
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
-    let surface = instance.create_surface(&target).expect("create surface");
+    let surface = instance.create_surface(target)?;
     let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
         power_preference: wgpu::PowerPreference::HighPerformance,
         compatible_surface: Some(&surface),
         force_fallback_adapter: false,
     }))
-    .expect("adapter");
+    .ok_or_else(|| anyhow::anyhow!("no vulkan adapter"))?;
     let (device, queue) =
-        pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor::default(), None))
-            .unwrap();
+        pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor::default(), None))?;
 
     let caps = surface.get_capabilities(&adapter);
     let format = caps
@@ -77,15 +74,11 @@ fn android_main(app: AndroidApp) {
         .find(|f| f.is_srgb())
         .copied()
         .unwrap_or(caps.formats[0]);
-    let size = {
-        let w = app.native_window().unwrap();
-        (w.width() as u32, w.height() as u32)
-    };
     let config = wgpu::SurfaceConfiguration {
         usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
         format,
-        width: size.0.max(1),
-        height: size.1.max(1),
+        width,
+        height,
         present_mode: wgpu::PresentMode::Fifo,
         alpha_mode: caps.alpha_modes[0],
         view_formats: vec![],
@@ -93,41 +86,80 @@ fn android_main(app: AndroidApp) {
     };
     surface.configure(&device, &config);
 
-    let mut game = App::new(device, queue, config, Difficulty::Normal).expect("init");
+    let game = App::new(device, queue, config, Difficulty::Normal)?;
+    Ok(Renderer { surface, game })
+}
+
+#[no_mangle]
+fn android_main(app: AndroidApp) {
+    android_logger::init_once(
+        android_logger::Config::default().with_max_level(log::LevelFilter::Info),
+    );
+    log_panics::init();
+
+    crate::assets::set_android_assets(app.asset_manager());
+
+    let mut state: Option<Renderer> = None;
 
     loop {
+        let mut exit = false;
         app.poll_events(
             Some(std::time::Duration::from_millis(16)),
             |event| match event {
+                PollEvent::Main(MainEvent::InitWindow { .. }) => {
+                    if state.is_none() {
+                        match init_renderer(&app) {
+                            Ok(r) => {
+                                log::info!("renderer ready");
+                                state = Some(r);
+                            }
+                            Err(e) => {
+                                log::error!("init failed: {e}");
+                                exit = true;
+                            }
+                        }
+                    }
+                }
+                PollEvent::Main(MainEvent::TerminateWindow { .. }) => {
+                    state = None;
+                }
                 PollEvent::Main(MainEvent::WindowResized { .. }) => {
-                    if let Some(w) = app.native_window() {
-                        let (width, height) = (w.width() as u32, w.height() as u32);
-                        game.renderer.config.width = width.max(1);
-                        game.renderer.config.height = height.max(1);
-                        surface.configure(&game.renderer.device, &game.renderer.config);
-                        game.renderer.resize(game.renderer.config.clone());
+                    if let (Some(r), Some(w)) = (state.as_mut(), app.native_window()) {
+                        r.game.renderer.config.width = w.width().max(1) as u32;
+                        r.game.renderer.config.height = w.height().max(1) as u32;
+                        r.surface
+                            .configure(&r.game.renderer.device, &r.game.renderer.config);
+                        r.game.renderer.resize(r.game.renderer.config.clone());
                     }
                 }
                 PollEvent::Main(MainEvent::RedrawNeeded { .. }) => {
-                    if let Ok(frame) = surface.get_current_texture() {
-                        let view = frame.texture.create_view(&Default::default());
-                        let (w, h) = (game.renderer.config.width, game.renderer.config.height);
-                        game.frame(&view, w, h);
-                        frame.present();
+                    if let Some(r) = state.as_mut() {
+                        if let Ok(frame) = r.surface.get_current_texture() {
+                            let view = frame.texture.create_view(&Default::default());
+                            let (w, h) =
+                                (r.game.renderer.config.width, r.game.renderer.config.height);
+                            r.game.frame(&view, w, h);
+                            frame.present();
+                        }
                     }
                 }
                 PollEvent::Main(MainEvent::InputAvailable) => {
-                    if let Ok(mut iter) = app.input_events_iter() {
-                        while iter.next(|e| {
-                            apply_input(&mut game, e);
-                            android_activity::InputStatus::Handled
-                        }) {}
+                    if let Some(r) = state.as_mut() {
+                        if let Ok(mut iter) = app.input_events_iter() {
+                            while iter.next(|e| {
+                                apply_input(&mut r.game, e);
+                                android_activity::InputStatus::Handled
+                            }) {}
+                        }
                     }
                 }
-                PollEvent::Main(MainEvent::Destroy { .. }) => std::process::exit(0),
+                PollEvent::Main(MainEvent::Destroy { .. }) => exit = true,
                 _ => {}
             },
         );
+        if exit {
+            return;
+        }
     }
 }
 
