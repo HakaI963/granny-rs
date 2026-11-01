@@ -22,6 +22,8 @@ android-activity = { version = "0.6", features = ["native-activity"] }
 ndk = { version = "0.9", features = ["rwh_06"] }
 ndk-context = "0.1"
 android_logger = "0.14"
+raw-window-handle = "0.6"
+ndk-sys = "0.6"
 log-panics = { version = "2", features = ["with-backtrace"] }
 
 [lib]

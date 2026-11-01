@@ -19,8 +19,9 @@ pub fn load(name: &str) -> anyhow::Result<Vec<u8>> {
         let mgr = ANDROID_ASSETS
             .get()
             .ok_or_else(|| anyhow::anyhow!("android asset manager not initialised"))?;
+        let cname = std::ffi::CString::new(name)?;
         let mut f = mgr
-            .open(name)
+            .open(&cname)
             .ok_or_else(|| anyhow::anyhow!("asset not found in APK: {name}"))?;
         let mut buf = Vec::new();
         f.read_to_end(&mut buf)?;
