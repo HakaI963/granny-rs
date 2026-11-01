@@ -5,3 +5,9 @@
 /dbg*.png
 /final*.png
 *.log
+
+/android/gradle-8.7
+/android/*.zip
+/android/.gradle
+/android/build
+/android/app/build

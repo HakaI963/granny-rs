@@ -67,8 +67,15 @@ jobs:
           echo "NDK_HOME=$ANDROID_HOME/ndk/27.0.12077973" >> $GITHUB_ENV
       - name: cargo-ndk
         run: cargo install cargo-ndk --locked
+      - name: stage assets
+        run: |
+          mkdir -p android/app/src/main/assets
+          cp assets/scene.bin assets/atlas.png android/app/src/main/assets/
       - name: build .so
-        run: cargo ndk -t arm64-v8a -o android/app/src/main/jniLibs build --release --locked
+        run: |
+          mkdir -p android/app/src/main/jniLibs
+          cargo ndk -t arm64-v8a -o android/app/src/main/jniLibs \
+            -Plib build --release --lib --locked
       - name: package apk
         run: |
           chmod +x android/gradlew
