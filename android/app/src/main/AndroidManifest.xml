@@ -8,12 +8,17 @@
     <application
         android:label="Granny"
         android:hasCode="false"
-        android:allowBackup="false">
+        android:allowBackup="false"
+        android:hardwareAccelerated="true"
+        android:appCategory="game">
         <activity
             android:name="android.app.NativeActivity"
             android:exported="true"
-            android:configChanges="orientation|keyboardHidden|screenSize"
-            android:screenOrientation="landscape"
+            android:configChanges="density|fontScale|keyboard|keyboardHidden|layoutDirection|locale|mcc|mnc|navigation|orientation|screenLayout|screenSize|smallestScreenSize|touchscreen|uiMode"
+            android:screenOrientation="userLandscape"
+            android:resizeableActivity="false"
+            android:launchMode="singleTask"
+            android:hardwareAccelerated="false"
             android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
             <meta-data android:name="android.app.lib_name" android:value="granny_rs" />
             <intent-filter>
