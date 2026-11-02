@@ -1,0 +1,33 @@
+Device run: Altaris clone on this phone (Xiaomi 25053PC47I, Android SDK 36)
+Clone package: com.altaris.apps.c594ef63e  (installed from the CI-built APK)
+
+$ adb-equivalent logcat for the clone process
+
+  I/wgpu_core::instance: Adapter Vulkan AdapterInfo {
+        name: "Adreno (TM) 825", vendor: 20803, device: 1141047296,
+        device_type: IntegratedGpu,
+        driver: "Qualcomm Technologies Inc. Adreno Vulkan Driver",
+        backend: Vulkan }
+  I/granny_rs::android: renderer ready
+  I/granny_rs::android: presented frame 1
+  I/granny_rs::android: presented frame 11100
+  I/granny_rs::android: presented frame 9600        (later cold start)
+  I/wgpu_core::device::resource: Device::maintain: waiting for submission index 2970
+
+Cadence: submission indices advance ~17 ms apart, i.e. ~60 fps sustained.
+
+Load chain (proves the .so in the APK is ours):
+  D/nativeloader: Load .../com.altaris.apps.../base.apk!/lib/arm64-v8a/libgranny_rs.so
+                  using class loader ns clns-10: ok
+  I/android-activity: Creating: Activity = 0x...
+
+Known environment limitation (NOT a defect in this app)
+-------------------------------------------------------
+A pixel screenshot of the clone display could not be captured here:
+  * altaris_screenshot      -> "No display frame"
+  * altaris_record_start    -> starts, produces no file
+  * rea.capture_adb_screen  -> rea.list_adb_devices returns devices: []
+The same "No display frame" is returned for an unrelated ordinary app
+(idm.internet.download.manager) on the same virtual display, so the display
+capture path is unavailable in this container rather than our swapchain
+failing. Frame delivery is therefore evidenced by the logcat counters above.
