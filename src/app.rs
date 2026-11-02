@@ -28,6 +28,8 @@ pub struct App {
     pub mouse_dx: f32,
     pub mouse_dy: f32,
     pub last: std::time::Instant,
+    /// Deterministic self-test drive. Set by `GRANNY_AUTOWALK`.
+    pub autowalk: bool,
 }
 
 /// Player spawn, taken from `PlayerStartPos` in the real scene.
@@ -132,6 +134,7 @@ impl App {
             mouse_dx: 0.0,
             mouse_dy: 0.0,
             last: std::time::Instant::now(),
+            autowalk: std::env::var("GRANNY_AUTOWALK").is_ok(),
         })
     }
 
@@ -154,6 +157,12 @@ impl App {
             want.x += 1.0
         }
         self.world.player.crouch = self.keys.crouch;
+        if self.autowalk {
+            // Drive the same tick path without needing keyboard focus, so CI and
+            // headless captures can prove the loop actually advances.
+            want.y += 1.0;
+            self.world.player.yaw += 0.4 * dt;
+        }
         if self.keys.turn_left {
             self.world.player.yaw += 2.2 * dt;
         }

@@ -31,7 +31,6 @@ struct State {
     app: App,
     mouse_captured: bool,
     last_cursor: (f32, f32),
-    autowalk: bool,
 }
 
 impl ApplicationHandler for Desktop {
@@ -90,7 +89,6 @@ impl ApplicationHandler for Desktop {
             app,
             mouse_captured: false,
             last_cursor: (0.0, 0.0),
-            autowalk: std::env::var("GRANNY_AUTOWALK").is_ok(),
         });
     }
 
