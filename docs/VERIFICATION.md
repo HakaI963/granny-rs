@@ -86,3 +86,21 @@ Desktop build renders `level2` from the recovered pack on a virtual display
 - crouch vs run speed and noise
 - Granny acquiring a visible player
 - day timer rollover
+
+## 6. End-to-end on Android
+
+The CI-built APK was installed into an Altaris clone and launched on a
+virtual display. Logcat shows the full wgpu init chain:
+
+```
+Load .../libgranny_rs.so using class loader ns clns-10: ok
+I/wgpu_core::instance: Adapter Vulkan AdapterInfo {
+    name: "Adreno (TM) 825", vendor: 20803, device_type: IntegratedGpu,
+    driver: "Qualcomm Technologies Inc. Adreno Vulkan Driver",
+    backend: Vulkan }
+I/granny_rs::android: renderer ready
+```
+
+The rendered frame shows the extracted `level2` geometry and texture atlas
+inside the clone. See `docs/screenshot.png` for the desktop render and
+`docs/android.png` for the on-device capture.

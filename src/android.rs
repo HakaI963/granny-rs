@@ -142,15 +142,8 @@ fn android_main(app: AndroidApp) {
                     }
                 }
                 PollEvent::Main(MainEvent::RedrawNeeded { .. }) => {
-                    if let Some(r) = state.as_mut() {
-                        if let Ok(frame) = r.surface.get_current_texture() {
-                            let view = frame.texture.create_view(&Default::default());
-                            let (w, h) =
-                                (r.game.renderer.config.width, r.game.renderer.config.height);
-                            r.game.frame(&view, w, h);
-                            frame.present();
-                        }
-                    }
+                    // Handled unconditionally each tick below; Android only emits
+                    // this when the compositor invalidates the surface.
                 }
                 PollEvent::Main(MainEvent::InputAvailable) => {
                     if let Some(r) = state.as_mut() {
