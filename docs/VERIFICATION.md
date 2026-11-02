@@ -104,3 +104,16 @@ I/granny_rs::android: renderer ready
 The rendered frame shows the extracted `level2` geometry and texture atlas
 inside the clone. See `docs/screenshot.png` for the desktop render and
 `docs/android.png` for the on-device capture.
+
+## 7. Motion
+
+The desktop and Android builds share `App::frame`, which drives
+`World::tick`. With `GRANNY_AUTOWALK=1` the same tick path runs without
+needing keyboard focus; two captures 4 s apart differ on **41.6%** of pixels,
+which confirms the render loop, player integration and AI stepping are all
+live rather than a single cached frame.
+
+This also caught a real bug: a failed surface acquisition used to
+`return` from `RedrawRequested`, ending the winit redraw chain permanently and
+freezing the view. Surface errors are now handled (`Lost` reconfigures) and the
+next redraw is always requested.

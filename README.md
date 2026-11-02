@@ -46,8 +46,12 @@ flags is set; those are reproduced verbatim as `AiBusy`.
 
 ```bash
 cargo build --release
-./target/release/granny-rs        # needs assets/scene.bin + assets/atlas.png
+./target/release/granny-rs              # needs assets/scene.bin + assets/atlas.png
+GRANNY_AUTOWALK=1 ./target/release/granny-rs   # drive the tick loop headlessly
 ```
+
+Controls: `W`/`S` forward and back, `A`/`D` strafe, `Q`/`R` turn, `Shift` run,
+`Ctrl` crouch, mouse look after the first click.
 
 Android (arm64) is built in CI only — see `.github/workflows/build.yml`.
 
