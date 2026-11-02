@@ -144,8 +144,8 @@ fn android_main(app: AndroidApp) {
                     }
                 }
                 PollEvent::Main(MainEvent::RedrawNeeded { .. }) => {
-                    // Handled unconditionally each tick below; Android only emits
-                    // this when the compositor invalidates the surface.
+                    // Presentation is driven from the tick below; Android only
+                    // emits this when the compositor invalidates the surface.
                 }
                 PollEvent::Main(MainEvent::InputAvailable) => {
                     if let Some(r) = state.as_mut() {
@@ -163,6 +163,33 @@ fn android_main(app: AndroidApp) {
         );
         if exit {
             return;
+        }
+        // Drive the game loop continuously. The original Unity app renders every
+        // frame, and the clone's display capture only sees a live stream if we do.
+        if let Some(r) = state.as_mut() {
+            match r.surface.get_current_texture() {
+                Ok(frame) => {
+                    let view = frame.texture.create_view(&Default::default());
+                    let (w, h) = (r.game.renderer.config.width, r.game.renderer.config.height);
+                    r.game.frame(&view, w, h);
+                    frame.present();
+                    frames += 1;
+                    if frames == 1 || frames % 300 == 0 {
+                        log::info!("presented frame {frames}");
+                    }
+                }
+                Err(wgpu::SurfaceError::Lost) | Err(wgpu::SurfaceError::Outdated) => {
+                    let c = r.game.renderer.config.clone();
+                    r.surface.configure(&r.game.renderer.device, &c);
+                    log::warn!("surface lost, reconfigured {}x{}", c.width, c.height);
+                }
+                Err(e) => {
+                    errors += 1;
+                    if errors == 1 || errors % 120 == 0 {
+                        log::error!("surface error x{errors}: {e:?}");
+                    }
+                }
+            }
         }
     }
 }
