@@ -100,6 +100,8 @@ fn android_main(app: AndroidApp) {
     crate::assets::set_android_assets(app.asset_manager());
 
     let mut state: Option<Renderer> = None;
+    let mut frames: u64 = 0;
+    let mut errors: u64 = 0;
 
     loop {
         let mut exit = false;
