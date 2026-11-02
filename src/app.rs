@@ -34,6 +34,11 @@ pub struct App {
 
 /// Player spawn, taken from `PlayerStartPos` in the real scene.
 pub const SPAWN: Vec3 = Vec3::new(13.75, 21.03, -7.16);
+/// `PlayerStartPos`/`Main Camera` face -X, which is yaw -90 degrees in this
+/// engine's `forward = (sin yaw, 0, cos yaw)` convention.
+pub const SPAWN_YAW: f32 = -std::f32::consts::FRAC_PI_2;
+/// `GrannyStartPos1` in the real scene.
+pub const GRANNY_SPAWN: Vec3 = Vec3::new(0.53, 7.31, 0.67);
 
 impl App {
     pub fn new(
@@ -101,6 +106,8 @@ impl App {
         renderer.upload(&verts, &idx);
 
         let mut world = World::new(difficulty, SPAWN);
+        world.player.yaw = SPAWN_YAW;
+        world.granny.pos = GRANNY_SPAWN;
         world.notify("Day 1");
         // Recovered spawns; the original randomises these per day via
         // RandomKeyPlace / RandomKofotPlace.
