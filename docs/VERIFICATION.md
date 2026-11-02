@@ -101,9 +101,25 @@ I/wgpu_core::instance: Adapter Vulkan AdapterInfo {
 I/granny_rs::android: renderer ready
 ```
 
-The rendered frame shows the extracted `level2` geometry and texture atlas
-inside the clone. See `docs/screenshot.png` for the desktop render and
-`docs/android.png` for the on-device capture.
+The final build (`userLandscape`, matching the shipped manifest) was retested
+after a cold install and presents continuously with no errors:
+
+```
+I/granny_rs::android: presented frame 3000
+I/wgpu_core::device::re..: Device::maintain: waiting for submission index 3142
+```
+
+No `panic`, `RustPanic`, `surface error` or `init failed` lines appear for the
+clone process. See `docs/android-run-log.txt`.
+
+A pixel screenshot of the clone display could not be produced in this
+container: `altaris_screenshot` returns "No display frame" and
+`altaris_record_start` yields no file, and it does so for an unrelated
+ordinary app on the same virtual display as well, so the capture path — not
+this app's swapchain — is the limitation. `rea.capture_adb_screen` is also
+unavailable (`list_adb_devices` returns `devices: []`). Frame delivery is
+therefore evidenced by the counters above; the desktop render is in
+`docs/screenshot.png`.
 
 ## 7. Motion
 
